@@ -17,8 +17,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Install free FFmpeg and fonts
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          if command -v ffmpeg >/dev/null 2>&1 && [ -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
+            echo "Runner already has FFmpeg and the required font; skipping system package installation."
+            ffmpeg -version | head -n 1
+          else
+            echo "Installing FFmpeg and DejaVu fonts."
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg fonts-dejavu-core
+          fi
       - name: Set up Python and synthesize original music
         uses: actions/setup-python@v5
         with:
