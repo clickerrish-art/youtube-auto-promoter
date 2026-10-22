@@ -15,12 +15,11 @@ jobs:
     steps:
       - name: Checkout render recipe
         uses: actions/checkout@v4
-      - name: Verify preinstalled FFmpeg and fonts
+      - name: Install free FFmpeg and fonts
         run: |
-          command -v ffmpeg
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
           ffmpeg -version | head -n 1
-          command -v fc-match
-          fc-match -f '%{file}\n' 'DejaVu Sans:style=Bold' | head -n 1
       - name: Set up Python and synthesize original music
         uses: actions/setup-python@v5
         with:
