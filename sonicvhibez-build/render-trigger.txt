@@ -1,1 +1,1 @@
-Trigger the latest free render workflow after the runner-preinstalled FFmpeg check was added. This file is a marker only; no secrets or media assets are stored here.
+Trigger the latest clean SonicVhibez FFmpeg render after fixing sidechain ducking and restoring the required render dependencies. Marker only; no secrets or media files.
