@@ -1,1 +1,1 @@
-Trigger the latest clean SonicVhibez FFmpeg render after fixing sidechain ducking and restoring the required render dependencies. Marker only; no secrets or media files.
+Trigger clean render after splitting narration for sidechain ducking. Marker only.
