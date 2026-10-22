@@ -1,0 +1,106 @@
+name: Render SonicVhibez Short (Free FFmpeg)
+on:
+  push:
+    branches:
+      - sonicvhibez-clean-render
+    paths:
+      - ".github/workflows/sonicvhibez-render.yml"
+      - "sonicvhibez-build/**"
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout render recipe
+        uses: actions/checkout@v4
+      - name: Install free FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Set up Python and synthesize original music
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install music generator dependencies
+        run: python -m pip install numpy scipy soundfile
+      - name: Download original Pexels footage and revised narration
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work output
+          curl -fL --retry 3 --retry-delay 2 "https://videos.pexels.com/video-files/29765785/12791462_360_640_25fps.mp4" -o work/lion-resting.mp4
+          curl -fL --retry 3 --retry-delay 2 "https://videos.pexels.com/video-files/11760785/11760785-hd_1080_2048_30fps.mp4" -o work/elephant-mother-calf.mp4
+          curl -fL --retry 3 --retry-delay 2 "https://videos.pexels.com/video-files/11528208/11528208-hd_1080_1922_30fps.mp4" -o work/lion-walking.mp4
+          curl -fL --retry 3 --retry-delay 2 "https://videos.pexels.com/video-files/31702128/13507641_360_640_30fps.mp4" -o work/lion-kenya.mp4
+          curl -fL --retry 3 --retry-delay 2 "https://resource2.heygen.ai/text_to_speech/525a7c6bb8f14a139a85655cab0f2176/a50b2b18a4bf49109caf46a3a6c6a08a/id=51d9adb4-c2cc-4386-9793-e31b7ae227a8.wav" -o work/revised-narration.wav
+          for f in work/*.mp4 work/revised-narration.wav; do test -s "$f"; done
+          du -h work/*
+      - name: Create subtitles for the final narration
+        shell: bash
+        run: |
+          cat > work/subtitles.srt <<'SRT'
+          1
+          00:00:00,270 --> 00:00:02,360
+          Want to make better wildlife videos for YouTube?
+          
+          2
+          00:00:02,810 --> 00:00:04,400
+          Great footage is only the beginning.
+          
+          3
+          00:00:04,720 --> 00:00:08,170
+          The Complete YouTube Wildlife Creator's Vault is a premium resource
+          
+          4
+          00:00:08,440 --> 00:00:10,300
+          designed to help you plan your next video,
+          
+          5
+          00:00:10,620 --> 00:00:13,310
+          shape your story, and create with more direction.
+          
+          6
+          00:00:13,740 --> 00:00:14,850
+          Click the link in the description.
+          
+          7
+          00:00:15,100 --> 00:00:16,080
+          Get your copy now.
+          
+          8
+          00:00:16,230 --> 00:00:19,470
+          A journey of a thousand miles starts with one step.
+          SRT
+      - name: Synthesize original energetic instrumental
+        run: python sonicvhibez-build/generate_music.py
+      - name: Render watermark-free vertical MP4 with captions and ducked music
+        shell: bash
+        run: |
+          set -euo pipefail
+          FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+          FILTER="[0:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v0];[1:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v1];[2:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v2];[3:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v3];[v0][v1]xfade=transition=fade:duration=0.35:offset=5.00[v01];[v01][v2]xfade=transition=fade:duration=0.35:offset=10.00[v012];[v012][v3]xfade=transition=fade:duration=0.35:offset=15.00[vraw];[vraw]drawtext=fontfile='${FONT}':text='WILDLIFE VIDEOS THAT STAND OUT':fontcolor=white:fontsize=50:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=20:x=(w-text_w)/2:y=240:enable='between(t,0.25,4.2)',drawtext=fontfile='${FONT}':text='PLAN. SHAPE. TELL THE STORY.':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=20:x=(w-text_w)/2:y=240:enable='between(t,8.2,12.8)',drawtext=fontfile='${FONT}':text='GET YOUR COPY NOW  |  R999':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=20:x=(w-text_w)/2:y=245:enable='between(t,14.9,19.5)',drawtext=fontfile='${FONT}':text='LINK IN DESCRIPTION':fontcolor=white:fontsize=42:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=18:x=(w-text_w)/2:y=335:enable='between(t,14.9,19.5)',subtitles=work/subtitles.srt:force_style='FontName=DejaVu Sans,FontSize=34,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV=335',format=yuv420p[vout];[4:a]aresample=44100,highpass=f=75,loudnorm=I=-16:TP=-1.5:LRA=11[voice];[5:a]aresample=44100,atrim=duration=19.62,volume=0.28,afade=t=in:st=0:d=0.4,afade=t=out:st=18.12:d=1.5[bed];[bed][voice]sidechaincompress=threshold=0.025:ratio=8:attack=18:release=420:level_sc=0[ducked];[voice][ducked]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]"
+          ffmpeg -y -hide_banner -loglevel warning \
+            -i work/lion-resting.mp4 \
+            -i work/elephant-mother-calf.mp4 \
+            -i work/lion-walking.mp4 \
+            -i work/lion-kenya.mp4 \
+            -i work/revised-narration.wav \
+            -stream_loop -1 -i sonicvhibez_original_energetic_bed.wav \
+            -filter_complex "$FILTER" \
+            -map "[vout]" -map "[aout]" -t 19.62 \
+            -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p \
+            -c:a aac -b:a 192k -movflags +faststart \
+            output/SonicVhibez_Wildlife_Creators_Vault_Short_CLEAN.mp4
+          ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,avg_frame_rate -of json output/SonicVhibez_Wildlife_Creators_Vault_Short_CLEAN.mp4 | tee output/ffprobe.json
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=s=x:p=0 output/SonicVhibez_Wildlife_Creators_Vault_Short_CLEAN.mp4)" = "1080"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 output/SonicVhibez_Wildlife_Creators_Vault_Short_CLEAN.mp4)" = "1920"
+          test -s output/SonicVhibez_Wildlife_Creators_Vault_Short_CLEAN.mp4
+      - name: Save rendered video as downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonicvhibez-clean-short
+          path: output/
+          retention-days: 7
+          if-no-files-found: error
