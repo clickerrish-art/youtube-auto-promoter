@@ -15,16 +15,12 @@ jobs:
     steps:
       - name: Checkout render recipe
         uses: actions/checkout@v4
-      - name: Install free FFmpeg and fonts
+      - name: Verify preinstalled FFmpeg and fonts
         run: |
-          if command -v ffmpeg >/dev/null 2>&1 && [ -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
-            echo "Runner already has FFmpeg and the required font; skipping system package installation."
-            ffmpeg -version | head -n 1
-          else
-            echo "Installing FFmpeg and DejaVu fonts."
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg fonts-dejavu-core
-          fi
+          command -v ffmpeg
+          ffmpeg -version | head -n 1
+          command -v fc-match
+          fc-match -f '%{file}\n' 'DejaVu Sans:style=Bold' | head -n 1
       - name: Set up Python and synthesize original music
         uses: actions/setup-python@v5
         with:
@@ -85,7 +81,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+          FONT="$(fc-match -f '%{file}' 'DejaVu Sans:style=Bold' | head -n 1)"
+          test -f "$FONT"
           FILTER="[0:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v0];[1:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v1];[2:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v2];[3:v]trim=duration=5.35,setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1,format=yuv420p[v3];[v0][v1]xfade=transition=fade:duration=0.35:offset=5.00[v01];[v01][v2]xfade=transition=fade:duration=0.35:offset=10.00[v012];[v012][v3]xfade=transition=fade:duration=0.35:offset=15.00[vraw];[vraw]drawtext=fontfile='${FONT}':text='WILDLIFE VIDEOS THAT STAND OUT':fontcolor=white:fontsize=50:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=20:x=(w-text_w)/2:y=240:enable='between(t,0.25,4.2)',drawtext=fontfile='${FONT}':text='PLAN. SHAPE. TELL THE STORY.':fontcolor=white:fontsize=48:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=20:x=(w-text_w)/2:y=240:enable='between(t,8.2,12.8)',drawtext=fontfile='${FONT}':text='GET YOUR COPY NOW  |  R999':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=20:x=(w-text_w)/2:y=245:enable='between(t,14.9,19.5)',drawtext=fontfile='${FONT}':text='LINK IN DESCRIPTION':fontcolor=white:fontsize=42:borderw=3:bordercolor=black:box=1:boxcolor=black@0.42:boxborderw=18:x=(w-text_w)/2:y=335:enable='between(t,14.9,19.5)',subtitles=work/subtitles.srt:force_style='FontName=DejaVu Sans,FontSize=34,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV=335',format=yuv420p[vout];[4:a]aresample=44100,highpass=f=75,loudnorm=I=-16:TP=-1.5:LRA=11[voice];[5:a]aresample=44100,atrim=duration=19.62,volume=0.28,afade=t=in:st=0:d=0.4,afade=t=out:st=18.12:d=1.5[bed];[bed][voice]sidechaincompress=threshold=0.025:ratio=8:attack=18:release=420:level_sc=0[ducked];[voice][ducked]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]"
           ffmpeg -y -hide_banner -loglevel warning \
             -i work/lion-resting.mp4 \
