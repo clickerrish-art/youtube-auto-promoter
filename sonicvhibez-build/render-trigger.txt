@@ -1,1 +1,1 @@
-Trigger clean render using cached package indexes and corrected voice split. Marker only.
+Trigger the clean render with narration captions burned as timed text. Marker only.
